@@ -1,6 +1,7 @@
 ﻿const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
 const KeywordService = require('./keywordService');
 require('dotenv').config();
 
@@ -10,19 +11,22 @@ const PORT = process.env.PORT || 3000;
 // Initialize services
 const keywordService = new KeywordService();
 
-// Middleware to track request time (MUST be before routes)
+// Middleware to track request time
 app.use((req, res, next) => {
   req.startTime = Date.now();
   next();
 });
 
-// Other middleware
+// Security and CORS
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
+// Serve static files
+app.use(express.static(path.join(__dirname, '../public')));
+
 // Health route
-app.get('/', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({
     message: 'SEO AI Agent API is running!',
     timestamp: new Date().toISOString(),
@@ -39,12 +43,13 @@ app.post('/api/keywords', async (req, res) => {
     // Input validation
     if (!seedKeyword || typeof seedKeyword !== 'string') {
       return res.status(400).json({
+        success: false,
         error: 'Invalid input',
         message: 'seedKeyword is required and must be a string'
       });
     }
 
-    console.log(📊 Processing keyword request for: );
+    console.log(📊 Processing keyword request for: "");
     
     // Generate keywords using our service
     const keywords = await keywordService.generateKeywords(seedKeyword.trim());
@@ -63,6 +68,7 @@ app.post('/api/keywords', async (req, res) => {
   } catch (error) {
     console.error('❌ Keyword API Error:', error.message);
     res.status(500).json({
+      success: false,
       error: 'Keyword generation failed',
       message: error.message,
       timestamp: new Date().toISOString()
@@ -101,6 +107,7 @@ app.use('*', (req, res) => {
 const server = app.listen(PORT, () => {
   console.log(🚀 Server running on http://localhost:);
   console.log(📝 Environment: );
+  console.log(🌐 Web Interface: http://localhost:);
   console.log(🤖 Keyword Service: Ready);
 });
 

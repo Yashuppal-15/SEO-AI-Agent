@@ -1,0 +1,145 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO AI Agent - Keyword Research</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 30px;
+        }
+        .keyword-item {
+            background: #f8f9fa;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 SEO AI Agent</h1>
+            <p>Generate 50 optimized keyword suggestions based on competition analysis</p>
+        </div>
+        
+        <div class="input-group">
+            <label for="seedKeyword">Enter Seed Keyword:</label>
+            <input type="text" id="seedKeyword" placeholder="e.g., global internship" value="global internship">
+        </div>
+        
+        <button onclick="generateKeywords()">🔍 Generate Keywords</button>
+        
+        <div id="results" class="results" style="display: none;">
+            <h3>Keyword Suggestions</h3>
+            <div id="keywordList"></div>
+        </div>
+    </div>
+
+    <script>
+        async function generateKeywords() {
+            const seedKeyword = document.getElementById('seedKeyword').value.trim();
+            if (!seedKeyword) {
+                alert('Please enter a seed keyword');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('results');
+            const keywordList = document.getElementById('keywordList');
+            
+            // Show loading
+            resultsDiv.style.display = 'block';
+            keywordList.innerHTML = '<div class="loading">🔄 Generating keywords...</div>';
+
+            try {
+                const response = await fetch('/api/keywords', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ seedKeyword })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayKeywords(data.keywords, data.processingTime);
+                } else {
+                    keywordList.innerHTML = '<div class="error">❌ Error: ' + data.message + '</div>';
+                }
+            } catch (error) {
+                keywordList.innerHTML = '<div class="error">❌ Error: ' + error.message + '</div>';
+            }
+        }
+
+        function displayKeywords(keywords, processingTime) {
+            const keywordList = document.getElementById('keywordList');
+            
+            let html = '<div style="margin-bottom: 20px; color: #666;">✅ Generated ' + keywords.length + ' keywords in ' + processingTime + '</div>';
+            
+            keywords.forEach((keyword, index) => {
+                html += '<div class="keyword-item">';
+                html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                html += '<div><strong>' + (index + 1) + '. ' + keyword.keyword + '</strong></div>';
+                html += '<div style="color: #666;">Score: ' + (keyword.score || 'N/A') + '</div>';
+                html += '</div>';
+                html += '<div style="margin-top: 8px; font-size: 14px; color: #666;">';
+                html += 'Volume: ' + keyword.searchVolume + ' | Competition: ' + Math.round(keyword.competition) + '% | Source: ' + keyword.source;
+                html += '</div>';
+                html += '</div>';
+            });
+            
+            keywordList.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
