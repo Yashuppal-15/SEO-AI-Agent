@@ -11,110 +11,93 @@ const PORT = process.env.PORT || 3000;
 // Initialize services
 const keywordService = new KeywordService();
 
-// Middleware to track request time
-app.use((req, res, next) => {
-  req.startTime = Date.now();
-  next();
-});
-
-// Security and CORS
+// Middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Serve static files
+// Serve static files (for web interface)
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Health route
-app.get('/api/health', (req, res) => {
+// Health check route
+app.get('/', (req, res) => {
   res.json({
-    message: 'SEO AI Agent API is running!',
+    message: 'SEO AI Agent is running!',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development'
+    author: 'Yashuppal-15'
   });
 });
 
-// Keyword research endpoint
+// Enhanced keyword research endpoint
 app.post('/api/keywords', async (req, res) => {
+  const startTime = Date.now();
+  
   try {
     const { seedKeyword } = req.body || {};
     
     // Input validation
-    if (!seedKeyword || typeof seedKeyword !== 'string') {
+    if (!seedKeyword || typeof seedKeyword !== 'string' || seedKeyword.trim().length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Invalid input',
-        message: 'seedKeyword is required and must be a string'
+        message: 'seedKeyword is required and must be a non-empty string',
+        timestamp: new Date().toISOString()
       });
     }
 
-    console.log('Processing keyword request for: \"' + seedKeyword + '\"');
+    console.log('🔍 Processing keyword request for: "' + seedKeyword.trim() + '"');
     
-    // Generate keywords using our service
+    // Generate keywords using our enhanced service
     const keywords = await keywordService.generateKeywords(seedKeyword.trim());
     
-    const processingTime = Date.now() - req.startTime;
+    const processingTime = Date.now() - startTime;
     
     res.json({
       success: true,
       seedKeyword: seedKeyword.trim(),
       totalResults: keywords.length,
       keywords: keywords,
-      timestamp: new Date().toISOString(),
-      processingTime: processingTime + 'ms'
+      metadata: {
+        processingTime: processingTime + 'ms',
+        timestamp: new Date().toISOString(),
+        algorithm: 'competition_volume_ranking',
+        firstPagePotential: keywords.filter(k => k.score > 50).length
+      }
     });
 
   } catch (error) {
-    console.error('Keyword API Error:', error.message);
+    const processingTime = Date.now() - startTime;
+    console.error('❌ Keyword API Error:', error.message);
+    
     res.status(500).json({
       success: false,
       error: 'Keyword generation failed',
       message: error.message,
-      timestamp: new Date().toISOString()
+      metadata: {
+        processingTime: processingTime + 'ms',
+        timestamp: new Date().toISOString()
+      }
     });
   }
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// API status endpoint
+app.get('/api/status', (req, res) => {
   res.json({
-    status: 'healthy',
-    uptime: process.uptime(),
+    status: 'operational',
+    service: 'SEO AI Agent',
+    uptime: Math.floor(process.uptime()) + ' seconds',
     memory: process.memoryUsage(),
     timestamp: new Date().toISOString()
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err.message);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: err.message
-  });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: 'Route ' + req.originalUrl + ' not found'
-  });
-});
-
 // Start server
-const server = app.listen(PORT, () => {
-  console.log('Server running on http://localhost:' + PORT);
-  console.log('Environment: ' + (process.env.NODE_ENV || 'development'));
-  console.log('Web Interface: http://localhost:' + PORT);
-  console.log('Keyword Service: Ready');
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
-  });
+app.listen(PORT, () => {
+  console.log('🚀 SEO AI Agent Server Started');
+  console.log('📍 Server URL: http://localhost:' + PORT);
+  console.log('🔧 Environment: ' + (process.env.NODE_ENV || 'development'));
+  console.log('🤖 Keyword Service: Ready');
+  console.log('⏰ Started at: ' + new Date().toLocaleString());
 });
