@@ -49,7 +49,7 @@ app.post('/api/keywords', async (req, res) => {
       });
     }
 
-    console.log(📊 Processing keyword request for: "");
+    console.log('Processing keyword request for: \"' + seedKeyword + '\"');
     
     // Generate keywords using our service
     const keywords = await keywordService.generateKeywords(seedKeyword.trim());
@@ -62,11 +62,11 @@ app.post('/api/keywords', async (req, res) => {
       totalResults: keywords.length,
       keywords: keywords,
       timestamp: new Date().toISOString(),
-      processingTime: ${processingTime}ms
+      processingTime: processingTime + 'ms'
     });
 
   } catch (error) {
-    console.error('❌ Keyword API Error:', error.message);
+    console.error('Keyword API Error:', error.message);
     res.status(500).json({
       success: false,
       error: 'Keyword generation failed',
@@ -99,16 +99,16 @@ app.use((err, req, res, next) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Not Found',
-    message: Route  not found
+    message: 'Route ' + req.originalUrl + ' not found'
   });
 });
 
 // Start server
 const server = app.listen(PORT, () => {
-  console.log(🚀 Server running on http://localhost:);
-  console.log(📝 Environment: );
-  console.log(🌐 Web Interface: http://localhost:);
-  console.log(🤖 Keyword Service: Ready);
+  console.log('Server running on http://localhost:' + PORT);
+  console.log('Environment: ' + (process.env.NODE_ENV || 'development'));
+  console.log('Web Interface: http://localhost:' + PORT);
+  console.log('Keyword Service: Ready');
 });
 
 // Graceful shutdown
