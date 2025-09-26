@@ -1,81 +1,110 @@
-﻿async function generateKeywords() {
-    const seedKeyword = document.getElementById('seedKeyword').value.trim();
-    if (!seedKeyword) {
-        alert('Please enter a seed keyword');
-        return;
-    }
+﻿let recentSearches = [];
+let lastResults = [];
 
-    const resultsDiv = document.getElementById('results');
-    const keywordGrid = document.getElementById('keywordGrid');
-    const resultsStats = document.getElementById('resultsStats');
-    
-    // Show loading
-    resultsDiv.style.display = 'block';
-    keywordGrid.innerHTML = '<div class=\"loading\">🔄 Analyzing keyword opportunities...</div>';
+async function generateKeywords() {
+  const seed = document.getElementById('seedKeyword').value.trim();
+  if (!seed) return alert('Please enter a seed keyword');
 
-    try {
-        console.log('Making API request to /api/keywords');
-        
-        const response = await fetch('/api/keywords', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ seedKeyword })
-        });
+  // Update last search time
+  const time = new Date().toLocaleTimeString();
+  document.getElementById('lastSearchTime').textContent = time;
 
-        console.log('Response status:', response.status);
-        const data = await response.json();
-        console.log('Response data:', data);
+  // Recent searches
+  recentSearches = [seed, ...recentSearches.filter(s=>s!==seed)].slice(0,5);
+  renderRecent();
 
-        if (data.success) {
-            displayKeywords(data.keywords, data.metadata);
-            resultsStats.textContent = data.totalResults + ' keywords • ' + data.metadata.processingTime;
-        } else {
-            keywordGrid.innerHTML = '<div class=\"error\">❌ Error: ' + data.message + '</div>';
-        }
-    } catch (error) {
-        console.error('Fetch error:', error);
-        keywordGrid.innerHTML = '<div class=\"error\">❌ Error: ' + error.message + '</div>';
-    }
-}
+  const resultsEl = document.getElementById('results');
+  resultsEl.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">⏳</div>
+      <h3>Generating Keywords…</h3>
+      <p>Please wait while we analyze</p>
+    </div>`;
 
-function displayKeywords(keywords, metadata) {
-    const keywordGrid = document.getElementById('keywordGrid');
-    
-    let html = '';
-    
-    keywords.forEach((keyword, index) => {
-        const scoreColor = keyword.score > 70 ? '#4caf50' : keyword.score > 40 ? '#ff9800' : '#f44336';
-        
-        html += '<div class=\"keyword-card\">';
-        html += '<div class=\"keyword-title\">' + (index + 1) + '. ' + keyword.keyword + '</div>';
-        html += '<div class=\"keyword-metrics\">';
-        html += '<span>📊 Volume: ' + keyword.searchVolume.toLocaleString() + '</span>';
-        html += '<span class=\"keyword-score\" style=\"background: ' + scoreColor + '\">Score: ' + keyword.score + '</span>';
-        html += '</div>';
-        html += '<div class=\"keyword-metrics\">';
-        html += '<span>🏆 Competition: ' + keyword.competition + '%</span>';
-        html += '<span>💎 Difficulty: ' + keyword.difficulty + '%</span>';
-        html += '</div>';
-        html += '<div class=\"keyword-metrics\">';
-        html += '<span>💰 CPC: $' + keyword.cpc + '</span>';
-        html += '<span>📈 Rank: #' + keyword.rank + '</span>';
-        html += '</div>';
-        html += '</div>';
+  try {
+    const res = await fetch('/api/keywords',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({seedKeyword:seed})
     });
-    
-    keywordGrid.innerHTML = html;
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    // Update stats
+    document.getElementById('totalCount').textContent = data.totalResults;
+    const avg = Math.round(data.keywords.reduce((a,k)=>a+k.searchVolume,0)/data.totalResults);
+    document.getElementById('avgVolume').textContent = avg.toLocaleString();
+    const lowCount = data.keywords.filter(k=>k.competition<30).length;
+    document.getElementById('lowCompPercent').textContent = Math.round(lowCount/data.totalResults*100)+'%';
+
+    lastResults = data.keywords;
+    renderResults(data.keywords);
+  } catch(err) {
+    resultsEl.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">❌</div>
+        <h3>Error</h3><p>${err.message}</p>
+      </div>`;
+  }
 }
 
-// Auto-generate on Enter key
-document.addEventListener('DOMContentLoaded', function() {
-    const input = document.getElementById('seedKeyword');
-    if (input) {
-        input.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                generateKeywords();
-            }
-        });
-    }
+function renderRecent() {
+  const el = document.getElementById('recentChips');
+  el.innerHTML = recentSearches.length
+    ? recentSearches.map(s=>`<span class="chip" onclick="selectRecent('${s}')">${s}</span>`).join('')
+    : '<span class="chip">No recent searches</span>';
+}
+
+function selectRecent(s) {
+  document.getElementById('seedKeyword').value = s;
+  generateKeywords();
+}
+
+function renderResults(items) {
+  const el = document.getElementById('results');
+  el.innerHTML = items.map(k=>`
+    <div class="result-card">
+      <div class="result-header">
+        <div class="result-rank">#${k.rank}</div>
+      </div>
+      <div class="result-title">${k.keyword}</div>
+      <div class="result-metrics">
+        <div class="metric-item"><span class="metric-label">Vol</span><span class="metric-value">${k.searchVolume.toLocaleString()}</span></div>
+        <div class="metric-item"><span class="metric-label">Comp</span><span class="metric-value">${k.competition}%</span></div>
+        <div class="metric-item"><span class="metric-label">Diff</span><span class="metric-value">${k.difficulty}%</span></div>
+        <div class="metric-item"><span class="metric-label">CPC</span><span class="metric-value">$${k.cpc.toFixed(2)}</span></div>
+      </div>
+    </div>`).join('');
+}
+
+function exportCSV() {
+  if (!lastResults.length) return alert('No data to export');
+  const rows = [
+    ['Rank','Keyword','Volume','Comp','Diff','CPC'],
+    ...lastResults.map(k=>[k.rank,k.keyword,k.searchVolume,k.competition,k.difficulty,k.cpc])
+  ];
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='keywords.csv';a.click();
+  URL.revokeObjectURL(url);
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const cur = html.getAttribute('data-theme');
+  const next = cur==='dark'?'light':'dark';
+  html.setAttribute('data-theme', next);
+  document.getElementById('darkToggle').classList.toggle('active', next==='dark');
+  document.getElementById('lightToggle').classList.toggle('active', next==='light');
+}
+
+function refreshPage() { location.reload(); }
+function clearRecent() {
+  recentSearches=[]; renderRecent();
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('seedKeyword').focus();
+  renderRecent();
 });
+
